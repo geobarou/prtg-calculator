@@ -114,12 +114,6 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-hei
 .custom-extra{border-top:1px solid var(--border);padding:7px 11px;display:none;background:#020810}
 .custom-extra input{width:70px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:2px 7px;outline:none}
 
-/* EXPORT / IMPORT */
-.cp-io{display:flex;gap:5px;margin-top:6px}
-.io-btn{flex:1;background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--font-mono);font-size:10px;padding:5px 4px;cursor:pointer;transition:all .12s;text-align:center}
-.io-btn:hover{border-color:var(--accent2);color:var(--accent)}
-.io-btn.import{border-color:var(--border2)}
-
 /* SIDEBAR */
 .sidebar{background:var(--bg2);padding:16px;display:flex;flex-direction:column;gap:14px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;border-left:1px solid var(--border)}
 .s-title{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px}
@@ -201,11 +195,6 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-hei
       <input class="cp-inp" id="cpName" placeholder="Client name..." oninput="onClientNameChange()">
       <textarea class="cp-notes" id="cpNotes" placeholder="Notes (e.g. no WMI on legacy servers, SNMPv2c only)..." oninput="onNotesChange()"></textarea>
       <button class="cp-save" onclick="saveCurrentClient()">💾 Save profile</button>
-      <div class="cp-io">
-        <button class="io-btn" onclick="exportProfiles()">↓ Export JSON</button>
-        <button class="io-btn import" onclick="document.getElementById('importFile').click()">↑ Import JSON</button>
-      </div>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProfiles(this)">
     </div>
   </div>
 
@@ -1180,61 +1169,6 @@ function printReport() {
   <script>window.onload=()=>window.print();<\/script>
   </body></html>`);
   win.document.close();
-}
-
-// ══════════════════════════════════════════════
-// EXPORT / IMPORT
-// ══════════════════════════════════════════════
-function exportProfiles() {
-  if (!Object.keys(clients).length) { alert("No client profiles to export."); return; }
-  const ser = {};
-  Object.entries(clients).forEach(([id,c]) => {
-    ser[id] = {
-      ...c,
-      deviceProtos: Object.fromEntries(Object.entries(c.deviceProtos||{}).map(([k,v])=>[k,[...v]])),
-      deviceRoles:  Object.fromEntries(Object.entries(c.deviceRoles||{}).map(([k,v])=>[k,[...v]])),
-    };
-  });
-  const payload = JSON.stringify({version:"prtg-calc-v5", exportedAt: new Date().toISOString(), clients: ser}, null, 2);
-  const blob = new Blob([payload], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `prtg-profiles-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-}
-
-function importProfiles(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!data.clients) { alert("Invalid file format."); return; }
-      const count = Object.keys(data.clients).length;
-      const existing = Object.keys(clients).length;
-      let mode = "merge";
-      if (existing > 0) {
-        const choice = confirm(`Import ${count} profile(s).\n\nOK = Merge with existing profiles\nCancel = Replace all existing profiles`);
-        mode = choice ? "merge" : "replace";
-      }
-      if (mode === "replace") clients = {};
-      Object.entries(data.clients).forEach(([id, c]) => {
-        clients[id] = {
-          ...c,
-          deviceProtos: Object.fromEntries(Object.entries(c.deviceProtos||{}).map(([k,v])=>[k,new Set(v)])),
-          deviceRoles:  Object.fromEntries(Object.entries(c.deviceRoles||{}).map(([k,v])=>[k,new Set(v)])),
-        };
-      });
-      saveClientsToStorage();
-      renderClientList();
-      alert(`Successfully imported ${count} profile(s).`);
-    } catch(err) {
-      alert("Failed to read file. Make sure it is a valid PRTG Calculator JSON export.");
-    }
-    input.value = "";
-  };
-  reader.readAsText(file);
 }
 
 // ══════════════════════════════════════════════
