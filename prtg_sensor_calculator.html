@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRTG Sensor Calculator — BlueStream NOC</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2330;
+  --border:#2d3748;--border2:#3d4f6e;
+  --accent:#4c9cf8;--accent2:#1a6fcf;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --green:#3fb950;--red:#f85149;--yellow:#e3b341;--orange:#f0883e;
+  --font-mono:'IBM Plex Mono',monospace;--font-sans:'IBM Plex Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;font-size:14px}
+
+/* HEADER */
+.header{border-bottom:1px solid var(--border);padding:13px 24px;display:flex;align-items:center;gap:12px;background:var(--bg);position:sticky;top:0;z-index:200}
+.header-icon{width:32px;height:32px;background:var(--accent2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.header h1{font-family:var(--font-mono);font-size:14px;font-weight:600;letter-spacing:-.02em}
+.header-sub{font-size:10px;color:var(--text3);font-family:var(--font-mono)}
+.hbadges{margin-left:auto;display:flex;gap:7px;align-items:center}
+.badge{font-family:var(--font-mono);font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid var(--border2);color:var(--text2);white-space:nowrap}
+.badge.live{border-color:var(--green);color:var(--green);display:flex;align-items:center;gap:4px}
+.badge.live::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:220px 1fr 340px;min-height:calc(100vh - 57px)}
+
+/* CLIENT PANEL */
+.client-panel{border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;position:sticky;top:57px;height:calc(100vh - 57px);overflow:hidden}
+.cp-hdr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.cp-title{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.cp-new{font-family:var(--font-mono);font-size:11px;color:var(--accent);cursor:pointer;border:1px solid var(--accent2);border-radius:4px;padding:2px 8px;background:none;transition:background .12s}
+.cp-new:hover{background:#0d2044}
+.cp-list{flex:1;overflow-y:auto;padding:6px 8px}
+.cp-item{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:all .12s}
+.cp-item:hover{background:var(--bg3);border-color:var(--border)}
+.cp-item.active{background:#0d2044;border-color:var(--accent2)}
+.cp-item-name{font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cp-item-count{font-family:var(--font-mono);font-size:10px;color:var(--text3)}
+.cp-item-del{color:var(--text3);font-size:14px;padding:0 2px;opacity:0;transition:opacity .12s;cursor:pointer;background:none;border:none}
+.cp-item:hover .cp-item-del{opacity:1}
+.cp-item-del:hover{color:var(--red)}
+.cp-empty{padding:24px 14px;text-align:center;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.cp-footer{border-top:1px solid var(--border);padding:10px 14px;display:none}
+.cp-inp{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-sans);font-size:12px;padding:5px 9px;outline:none;margin-bottom:6px}
+.cp-inp:focus{border-color:var(--accent2)}
+.cp-notes{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text2);font-family:var(--font-sans);font-size:11px;padding:5px 9px;outline:none;resize:none;height:58px;line-height:1.4}
+.cp-notes:focus{border-color:var(--border2)}
+.cp-notes::placeholder{color:var(--text3)}
+.cp-save{width:100%;margin-top:6px;background:var(--accent2);border:none;border-radius:5px;color:#fff;font-family:var(--font-mono);font-size:11px;padding:7px;cursor:pointer;transition:background .12s}
+.cp-save:hover{background:var(--accent)}
+
+/* MAIN */
+.main{padding:16px 22px;overflow-y:auto}
+.search-bar{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 11px;margin-bottom:10px}
+.search-bar input{background:none;border:none;outline:none;color:var(--text);font-family:var(--font-sans);font-size:12px;width:100%}
+.search-bar input::placeholder{color:var(--text3)}
+.filter-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
+.ftab{font-family:var(--font-mono);font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--text3);cursor:pointer;transition:all .12s;white-space:nowrap}
+.ftab:hover{border-color:var(--border2);color:var(--text2)}
+.ftab.active{border-color:var(--accent2);color:var(--accent);background:#0d2044}
+
+.cat-section{margin-bottom:20px}
+.cat-label{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.cat-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.device-list{display:flex;flex-direction:column;gap:3px}
+
+/* DEVICE CARD */
+.dcard{background:var(--bg2);border:1px solid var(--border);border-radius:7px;overflow:hidden;transition:border-color .15s}
+.dcard:hover{border-color:var(--border2)}
+.dcard.active{border-color:var(--accent2);background:#07101f}
+.card-top{display:grid;grid-template-columns:22px 1fr auto 118px;align-items:center;gap:9px;padding:8px 11px}
+.dev-emoji{font-size:14px;text-align:center}
+.dev-name{font-size:12px;font-weight:500;color:var(--text)}
+.dev-sub{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stag{font-family:var(--font-mono);font-size:10px;color:var(--accent);background:#0d2044;border:1px solid var(--accent2);border-radius:4px;padding:2px 6px;white-space:nowrap;text-align:center}
+.qty-ctrl{display:flex;align-items:center;gap:3px}
+.qbtn{width:23px;height:23px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;font-family:var(--font-mono)}
+.qbtn:hover{background:var(--border2);color:var(--text)}
+.qinp{width:38px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:500;padding:2px 3px;outline:none}
+.qinp:focus{border-color:var(--accent2)}
+
+/* EXPANDABLE SECTIONS */
+.expand-section{border-top:1px solid var(--border);padding:8px 11px;display:none;background:#050c1a}
+.dcard.active .expand-section{display:block}
+.expand-section.roles-section{background:#030a15}
+.expand-section.chips-section{background:#020810}
+.sec-title{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+
+/* PROTOCOL TOGGLES */
+.proto-btns{display:flex;flex-wrap:wrap;gap:4px}
+.pbtn{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;border:1px solid;cursor:pointer;font-size:10px;font-family:var(--font-mono);user-select:none;transition:opacity .12s}
+.pbtn input{display:none}
+.pbtn.off{opacity:.25}
+.pbtn.locked{opacity:.15;cursor:not-allowed;pointer-events:none}
+
+/* ROLE TOGGLES */
+.role-btns{display:flex;flex-wrap:wrap;gap:4px}
+.rbtn{display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:1px solid var(--border2);cursor:pointer;font-size:10px;font-family:var(--font-mono);color:var(--text3);user-select:none;background:none;transition:all .12s}
+.rbtn input{display:none}
+.rbtn.on{border-color:var(--yellow);color:var(--yellow);background:#1a1500}
+
+/* SENSOR CHIPS */
+.chips{display:flex;flex-wrap:wrap;gap:3px}
+.chip{font-family:var(--font-mono);font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid;white-space:nowrap}
+
+/* CUSTOM INPUT */
+.custom-extra{border-top:1px solid var(--border);padding:7px 11px;display:none;background:#020810}
+.custom-extra input{width:70px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:2px 7px;outline:none}
+
+/* EXPORT / IMPORT */
+.cp-io{display:flex;gap:5px;margin-top:6px}
+.io-btn{flex:1;background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--font-mono);font-size:10px;padding:5px 4px;cursor:pointer;transition:all .12s;text-align:center}
+.io-btn:hover{border-color:var(--accent2);color:var(--accent)}
+.io-btn.import{border-color:var(--border2)}
+
+/* SIDEBAR */
+.sidebar{background:var(--bg2);padding:16px;display:flex;flex-direction:column;gap:14px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;border-left:1px solid var(--border)}
+.s-title{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px}
+.total-box{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:16px;text-align:center}
+.total-num{font-family:var(--font-mono);font-size:44px;font-weight:600;color:var(--accent);line-height:1;letter-spacing:-.03em}
+.total-lbl{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--font-mono)}
+.total-devs{font-family:var(--font-mono);font-size:10px;color:var(--text2);margin-top:5px}
+.client-info-box{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
+.cib-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.cib-notes{font-size:11px;color:var(--text2);font-style:italic;line-height:1.5;white-space:pre-wrap}
+.proto-sum{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:9px 12px}
+.ps-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)}
+.ps-row:last-child{border-bottom:none}
+.ps-lbl{display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--font-mono);color:var(--text2)}
+.ps-val{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--text)}
+.bd-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:9px;overflow:hidden;flex:1}
+.bd-hdr{display:grid;grid-template-columns:1fr auto auto;padding:6px 11px;border-bottom:1px solid var(--border);background:var(--bg2)}
+.bd-hdr span{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.bd-hdr span:nth-child(2),.bd-hdr span:nth-child(3){text-align:right}
+.bd-body{overflow-y:auto}
+.bd-row{display:grid;grid-template-columns:1fr auto auto;padding:5px 11px;border-bottom:1px solid var(--border);align-items:start}
+.bd-row:last-child{border-bottom:none}
+.bd-name{font-size:11px;color:var(--text2)}
+.bd-qty{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-align:right;padding-right:10px;padding-top:1px}
+.bd-tot{font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:500;text-align:right;min-width:34px;padding-top:1px}
+.bd-empty{padding:20px;text-align:center;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+.print-btn{width:100%;background:var(--accent2);border:none;border-radius:6px;color:#fff;font-family:var(--font-mono);font-size:11px;padding:8px;cursor:pointer;transition:background .12s}
+.print-btn:hover{background:var(--accent)}
+.reset-btn{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-family:var(--font-mono);font-size:11px;padding:7px;cursor:pointer;width:100%;transition:border-color .12s,color .12s}
+.reset-btn:hover{border-color:var(--red);color:var(--red)}
+.no-results{text-align:center;padding:28px;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:20px 22px;width:340px}
+.modal h3{font-family:var(--font-mono);font-size:13px;font-weight:600;margin-bottom:14px}
+.modal input,.modal textarea{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-sans);font-size:13px;padding:7px 10px;outline:none;margin-bottom:10px}
+.modal textarea{resize:none;height:70px;font-size:12px}
+.modal input:focus,.modal textarea:focus{border-color:var(--accent2)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.modal-cancel{background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--font-mono);font-size:11px;padding:6px 14px;cursor:pointer}
+.modal-cancel:hover{border-color:var(--red);color:var(--red)}
+.modal-ok{background:var(--accent2);border:none;border-radius:5px;color:#fff;font-family:var(--font-mono);font-size:11px;padding:6px 14px;cursor:pointer}
+.modal-ok:hover{background:var(--accent)}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📡</div>
+  <div>
+    <h1>PRTG Sensor Calculator</h1>
+    <div class="header-sub">BlueStream Solutions — MSP / NOC Edition</div>
+  </div>
+  <div class="hbadges">
+    <div class="badge live">live</div>
+    <div class="badge" id="hClient">No client selected</div>
+    <div class="badge" id="hTotal">0 sensors</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- CLIENT PANEL -->
+  <div class="client-panel">
+    <div class="cp-hdr">
+      <span class="cp-title">Clients</span>
+      <button class="cp-new" onclick="openNewClientModal()">+ New</button>
+    </div>
+    <div class="cp-list" id="cpList">
+      <div class="cp-empty">// no clients yet<br>click + New to start</div>
+    </div>
+    <div class="cp-footer" id="cpFooter">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Active client</div>
+      <input class="cp-inp" id="cpName" placeholder="Client name..." oninput="onClientNameChange()">
+      <textarea class="cp-notes" id="cpNotes" placeholder="Notes (e.g. no WMI on legacy servers, SNMPv2c only)..." oninput="onNotesChange()"></textarea>
+      <button class="cp-save" onclick="saveCurrentClient()">💾 Save profile</button>
+      <div class="cp-io">
+        <button class="io-btn" onclick="exportProfiles()">↓ Export JSON</button>
+        <button class="io-btn import" onclick="document.getElementById('importFile').click()">↑ Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProfiles(this)">
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="search-bar">
+      <span style="color:var(--text3);font-size:12px">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search devices..." oninput="filterDevices()">
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab active" onclick="setFilter('all',this)">All</button>
+      <button class="ftab" onclick="setFilter('servers',this)">Servers</button>
+      <button class="ftab" onclick="setFilter('network',this)">Network / Cisco</button>
+      <button class="ftab" onclick="setFilter('network_hp',this)">Network / HP</button>
+      <button class="ftab" onclick="setFilter('fortinet',this)">FortiNet</button>
+      <button class="ftab" onclick="setFilter('firewalls',this)">Firewalls</button>
+      <button class="ftab" onclick="setFilter('virtualization',this)">Virtualization</button>
+      <button class="ftab" onclick="setFilter('infra',this)">Infrastructure</button>
+      <button class="ftab" onclick="setFilter('power',this)">Power Servers</button>
+      <button class="ftab" onclick="setFilter('other',this)">Other</button>
+    </div>
+    <div id="deviceContainer"></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div>
+      <div class="s-title">Total Sensors</div>
+      <div class="total-box">
+        <div class="total-num" id="totalSensors">0</div>
+        <div class="total-lbl">sensors</div>
+        <div class="total-devs" id="totalDevices">0 devices selected</div>
+      </div>
+    </div>
+    <div id="clientInfoArea" style="display:none">
+      <div class="s-title">Client</div>
+      <div class="client-info-box" id="clientInfoBox"></div>
+    </div>
+    <div>
+      <div class="s-title">By protocol</div>
+      <div class="proto-sum" id="protoSum"></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;min-height:140px">
+      <div class="s-title">Breakdown</div>
+      <div class="bd-wrap" style="flex:1;overflow-y:auto">
+        <div class="bd-hdr"><span>Device</span><span>Qty</span><span>Sen.</span></div>
+        <div class="bd-body" id="bdBody"><div class="bd-empty">— none selected —</div></div>
+      </div>
+    </div>
+    <button class="print-btn" onclick="printReport()">🖨️ Print Report</button>
+    <button class="reset-btn" onclick="resetDevices()">✕ Clear devices</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>📋 New Client</h3>
+    <input id="modalName" placeholder="Client name (e.g. Elgeka)" maxlength="60">
+    <textarea id="modalNotes" placeholder="Notes (optional)..."></textarea>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-ok" onclick="createClient()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// PROTOCOLS
+// ══════════════════════════════════════════════
+const PROTOS = {
+  snmp:  {label:"SNMP",        color:"#c084fc",bc:"#7c3aed",bg:"#1a0a2e"},
+  wmi:   {label:"WMI",         color:"#60a5fa",bc:"#1d4ed8",bg:"#0a0f2e"},
+  ssh:   {label:"SSH",         color:"#34d399",bc:"#065f46",bg:"#021a12"},
+  http:  {label:"HTTP/HTTPS",  color:"#fb923c",bc:"#9a3412",bg:"#1f0a02"},
+  api:   {label:"REST API",    color:"#f472b6",bc:"#9d174d",bg:"#1a0210"},
+  agent: {label:"Agent",       color:"#facc15",bc:"#92400e",bg:"#1a0f00"},
+  icmp:  {label:"ICMP/Ping",   color:"#94a3b8",bc:"#475569",bg:"#111827"},
+};
+const PROTO_ORDER = ["wmi","ssh","snmp","http","api","agent","icmp"];
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+const S = (n,p) => ({n,p});
+const iface = n => Array.from({length:n},(_,i)=>S(`Interface ${i+1} Traffic`,"snmp"));
+const uplink = n => Array.from({length:n},(_,i)=>S(`Uplink ${i+1} Traffic`,"snmp"));
+
+// ══════════════════════════════════════════════
+// WINDOWS SERVER ROLES
+// ══════════════════════════════════════════════
+const WIN_ROLES = {
+  adds:    {label:"AD DS",            emoji:"🗂️", sensors:[
+    S("AD Replication #1","wmi"),S("AD Replication #2","wmi"),S("AD Replication #3","wmi"),
+    S("AD Replication #4","wmi"),S("AD Replication #5","wmi"),
+    S("LDAP Searches/sec","wmi"),S("Kerberos Auth/sec","wmi"),S("NTLM Auth/sec","wmi"),
+    S("SYSVOL Share","wmi"),S("NetLogon Service","wmi"),S("DFSR Backlog","wmi"),
+  ]},
+  dns:     {label:"DNS",              emoji:"🔍", sensors:[
+    S("DNS Queries/sec","wmi"),S("DNS Recursive Queries/sec","wmi"),
+    S("DNS Cache Hit Rate","wmi"),S("DNS Failures/sec","wmi"),S("DNS Service","wmi"),
+  ]},
+  dhcp:    {label:"DHCP",             emoji:"📋", sensors:[
+    S("DHCP Leases Active","wmi"),S("DHCP Addresses Free %","wmi"),
+    S("DHCP Discovers/sec","wmi"),S("DHCP Acks/sec","wmi"),S("DHCP Nacks/sec","wmi"),
+    S("DHCP Service","wmi"),
+  ]},
+  fs:      {label:"File Server",      emoji:"📁", sensors:[
+    S("SMB Sessions","wmi"),S("SMB Bytes Read/sec","wmi"),S("SMB Bytes Write/sec","wmi"),
+    S("Open Files Count","wmi"),S("DFS Replication Backlog","wmi"),
+  ]},
+  print:   {label:"Print Server",     emoji:"🖨️", sensors:[
+    S("Print Queue Length","wmi"),S("Jobs Printed/sec","wmi"),
+    S("Print Errors","wmi"),S("Spooler Service","wmi"),
+  ]},
+  rds:     {label:"RDS",              emoji:"🖥️", sensors:[
+    S("RDS Active Sessions","wmi"),S("RDS Disconnected Sessions","wmi"),
+    S("RDS Total Sessions","wmi"),S("RDS Input Delay","wmi"),
+    S("RD Licensing Available","wmi"),
+  ]},
+  iis:     {label:"IIS",              emoji:"🌍", sensors:[
+    S("IIS Active Connections","wmi"),S("IIS Requests/sec","wmi"),
+    S("IIS Errors/min","wmi"),S("IIS Bytes Sent/sec","wmi"),
+    S("App Pool #1 State","wmi"),S("App Pool #2 State","wmi"),S("App Pool #3 State","wmi"),
+    S("HTTP Response Time","http"),S("HTTP Status Code","http"),
+  ]},
+  wsus:    {label:"WSUS",             emoji:"🔄", sensors:[
+    S("WSUS Sync Status","wmi"),S("WSUS Computers Pending","wmi"),S("WSUS Service","wmi"),
+  ]},
+  nps:     {label:"NPS/RADIUS",       emoji:"📡", sensors:[
+    S("NPS Access Requests/sec","wmi"),S("NPS Access Accepts/sec","wmi"),
+    S("NPS Access Rejects/sec","wmi"),S("NPS Auth Failures","wmi"),
+  ]},
+  adcs:    {label:"AD CS",            emoji:"📜", sensors:[
+    S("CA Pending Requests","wmi"),S("CA Certs Issued/sec","wmi"),
+    S("CA Failed Requests/sec","wmi"),S("CA Service","wmi"),
+  ]},
+  cluster: {label:"Failover Cluster", emoji:"⚙️", sensors:[
+    S("Cluster Service","wmi"),S("Cluster Resource State","wmi"),
+    S("Cluster Network State","wmi"),S("CSV Free Space","wmi"),S("CSV I/O","wmi"),
+  ]},
+  exchange:{label:"Exchange",         emoji:"📧", sensors:[
+    S("Mail Queue Length","wmi"),S("DB Whitespace","wmi"),
+    S("Transport Service","wmi"),S("RPC Latency","wmi"),
+    S("OWA Response Time","http"),S("OWA HTTP Status","http"),
+  ]},
+};
+
+// ══════════════════════════════════════════════
+// LINUX ROLES
+// ══════════════════════════════════════════════
+const LINUX_ROLES = {
+  web:   {label:"Web (Nginx/Apache)", emoji:"🌍", sensors:[
+    S("HTTP Response Time","http"),S("HTTP Status Code","http"),
+    S("Active Connections","ssh"),S("Requests/sec","ssh"),
+    S("Errors 4xx/min","http"),S("Errors 5xx/min","http"),
+  ]},
+  postgres:{label:"PostgreSQL",       emoji:"🐘", sensors:[
+    S("Active Connections","ssh"),S("DB Size #1","ssh"),S("DB Size #2","ssh"),
+    S("Backup Age","ssh"),S("Table Locks","ssh"),
+    S("Replication Lag","ssh"),S("Transactions/sec","ssh"),
+  ]},
+  mysql: {label:"MySQL/MariaDB",      emoji:"🐬", sensors:[
+    S("Active Connections","ssh"),S("DB Size #1","ssh"),S("Slow Queries/sec","ssh"),
+    S("Backup Age","ssh"),S("Replication Lag","ssh"),S("Queries/sec","ssh"),
+  ]},
+  mail:  {label:"Mail (Postfix)",     emoji:"📧", sensors:[
+    S("Mail Queue Length","ssh"),S("Postfix Service","ssh"),
+    S("Messages Sent/sec","ssh"),S("Messages Rejected/sec","ssh"),
+  ]},
+  nfs:   {label:"NFS Server",         emoji:"📁", sensors:[
+    S("NFS Mounts Active","ssh"),S("NFS Read Ops/sec","ssh"),S("NFS Write Ops/sec","ssh"),
+  ]},
+  proxy: {label:"Proxy (Squid/HAProxy)",emoji:"🔀", sensors:[
+    S("Active Connections","ssh"),S("Requests/sec","ssh"),
+    S("Cache Hit Rate","ssh"),S("Service Status","ssh"),
+  ]},
+};
+
+// ══════════════════════════════════════════════
+// DEVICES
+// ══════════════════════════════════════════════
+const DEVICES = [
+  // ── SERVERS ──────────────────────────────────
+  {id:"win_server", cat:"servers", emoji:"🖥️", name:"Windows Server",
+   hasRoles:true, roleSet:"WIN_ROLES",
+   availProtos:["wmi","snmp","icmp"], defaultProtos:["wmi","icmp"],
+   groups:[
+     {protos:["wmi"], sensors:[
+       S("CPU Load","wmi"),S("RAM Usage","wmi"),S("C: Drive Free","wmi"),S("D: Drive Free","wmi"),
+       S("Windows Service #1","wmi"),S("Windows Service #2","wmi"),S("Windows Service #3","wmi"),
+       S("Event Log Errors","wmi"),S("Uptime","wmi"),
+     ]},
+     {protos:["snmp"], sensors:[
+       S("CPU Load","snmp"),S("RAM Usage","snmp"),
+       S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp"),
+     ]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  {id:"linux", cat:"servers", emoji:"🐧", name:"Linux / RHEL Server",
+   hasRoles:true, roleSet:"LINUX_ROLES",
+   availProtos:["ssh","snmp","icmp"], defaultProtos:["ssh","icmp"],
+   groups:[
+     {protos:["ssh"], sensors:[
+       S("CPU Load","ssh"),S("RAM Usage","ssh"),S("Disk / Free","ssh"),S("Disk /data Free","ssh"),
+       S("Network In","ssh"),S("Network Out","ssh"),S("Load Average","ssh"),
+       S("SSH Connectivity","ssh"),S("Uptime","ssh"),
+     ]},
+     {protos:["snmp"], sensors:[
+       S("CPU Load","snmp"),S("RAM Usage","snmp"),
+       S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp"),
+     ]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  {id:"sql", cat:"servers", emoji:"🗄️", name:"SQL Server",
+   availProtos:["wmi","snmp","icmp"], defaultProtos:["wmi","icmp"],
+   groups:[
+     {protos:["wmi"], sensors:[
+       S("CPU Load","wmi"),S("RAM Usage","wmi"),S("Active Connections","wmi"),
+       S("DB Size #1","wmi"),S("DB Size #2","wmi"),S("DB Size #3","wmi"),
+       S("Backup Age #1","wmi"),S("Backup Age #2","wmi"),S("Backup Age #3","wmi"),
+       S("SQL Services","wmi"),S("Deadlocks/min","wmi"),S("Uptime","wmi"),
+     ]},
+     {protos:["snmp"], sensors:[
+       S("CPU Load","snmp"),S("RAM Usage","snmp"),
+       S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp"),
+     ]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  {id:"backup", cat:"servers", emoji:"💿", name:"Backup Server (Veeam)",
+   availProtos:["wmi","icmp"], defaultProtos:["wmi","icmp"],
+   groups:[
+     {protos:["wmi"], sensors:[
+       S("CPU Load","wmi"),S("RAM Usage","wmi"),
+       S("Backup Job #1","wmi"),S("Backup Job #2","wmi"),S("Backup Job #3","wmi"),
+       S("Backup Job #4","wmi"),S("Backup Job #5","wmi"),
+       S("Repository Free","wmi"),S("Last Job Runtime","wmi"),S("Veeam Services","wmi"),
+     ]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── NETWORK / CISCO ──────────────────────────
+  {id:"switch24", cat:"network", emoji:"🔀", name:"Cisco Switch 24p",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...iface(24),S("Interface Errors","snmp"),S("STP Status","snmp"),S("Temperature","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"switch48", cat:"network", emoji:"🔀", name:"Cisco Switch 48p",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...iface(48),S("Interface Errors","snmp"),S("STP Status","snmp"),S("Temperature","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"router", cat:"network", emoji:"🌐", name:"Cisco Router",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("WAN In","snmp"),S("WAN Out","snmp"),S("LAN Interface","snmp"),S("BGP Status","snmp"),S("OSPF Neighbors","snmp"),S("Interface Errors","snmp"),S("Temperature","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"ap_cisco", cat:"network", emoji:"📡", name:"Cisco Access Point",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Connected Clients","snmp"),S("Signal Strength","snmp"),S("Traffic In","snmp"),S("Traffic Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── NETWORK / HP ─────────────────────────────
+  {id:"hp_sw24", cat:"network_hp", emoji:"🔀", name:"HP/Aruba Switch 24p",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...iface(24),S("Interface Errors","snmp"),S("STP Status","snmp"),S("Temperature","snmp"),S("PoE Budget Used","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"hp_sw48", cat:"network_hp", emoji:"🔀", name:"HP/Aruba Switch 48p",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...iface(48),S("Interface Errors","snmp"),S("STP Status","snmp"),S("Temperature","snmp"),S("PoE Budget Used","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"hp_core", cat:"network_hp", emoji:"🔀", name:"HP/Aruba Core Switch",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...uplink(10),S("VSF/Stack Status","snmp"),S("OSPF Neighbors","snmp"),S("MSTP Root","snmp"),S("Temperature","snmp"),S("Fan Status","snmp"),S("Power Supply","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"hp_ap", cat:"network_hp", emoji:"📡", name:"HP/Aruba Access Point",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Clients 2.4GHz","snmp"),S("Clients 5GHz","snmp"),S("Signal Strength","snmp"),S("Traffic In","snmp"),S("Traffic Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"aruba_ctrl", cat:"network_hp", emoji:"🎛️", name:"Aruba Controller (AOS)",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("APs Managed","snmp"),S("Total Clients","snmp"),S("GRE Tunnels","snmp"),S("License Usage","snmp"),S("Traffic In","snmp"),S("Traffic Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── FORTINET ──────────────────────────────────
+  {id:"fortigate", cat:"fortinet", emoji:"🔥", name:"FortiGate Firewall",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Active Sessions","snmp"),S("HA Status","snmp"),S("VPN Tunnel #1","snmp"),S("VPN Tunnel #2","snmp"),S("VPN Tunnel #3","snmp"),S("VPN Tunnel #4","snmp"),S("VPN Tunnel #5","snmp"),S("WAN1 Traffic","snmp"),S("WAN2 Traffic","snmp"),S("Temperature/Fan","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"fortiswitch", cat:"fortinet", emoji:"🔀", name:"FortiSwitch",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),...iface(24),S("Interface Errors","snmp"),S("STP Status","snmp"),S("Temperature","snmp"),S("PoE Budget Used","snmp"),S("FortiLink Status","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"fortiap", cat:"fortinet", emoji:"📡", name:"FortiAP",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Connected Clients","snmp"),S("Signal Strength 2.4GHz","snmp"),S("Signal Strength 5GHz","snmp"),S("Traffic In","snmp"),S("Traffic Out","snmp"),S("WTP Status","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"fortianalyzer", cat:"fortinet", emoji:"📊", name:"FortiAnalyzer",
+   availProtos:["snmp","http","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Disk Usage","snmp"),S("Log Rate","snmp"),S("Devices Managed","snmp"),S("Uptime","snmp")]},
+     {protos:["http"], sensors:[S("GUI Response Time","http"),S("GUI HTTP Status","http")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"fortimanager", cat:"fortinet", emoji:"🎛️", name:"FortiManager",
+   availProtos:["snmp","http","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Disk Usage","snmp"),S("Devices Managed","snmp"),S("Policy Packages","snmp"),S("Uptime","snmp")]},
+     {protos:["http"], sensors:[S("GUI Response Time","http"),S("GUI HTTP Status","http")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── FIREWALLS (OTHER) ──────────────────────────
+  {id:"checkpoint", cat:"firewalls", emoji:"🔐", name:"Checkpoint Firewall",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Policy Install","snmp"),S("SIC Status","snmp"),S("VPN Status","snmp"),S("Active Connections","snmp"),S("Throughput In","snmp"),S("Throughput Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"watchguard", cat:"firewalls", emoji:"🛡️", name:"WatchGuard Firebox",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Active Connections","snmp"),S("VPN Tunnels","snmp"),S("Throughput In","snmp"),S("Throughput Out","snmp"),S("Interface Status","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── VIRTUALIZATION ────────────────────────────
+  {id:"hyperv", cat:"virtualization", emoji:"⚡", name:"Hyper-V Host",
+   availProtos:["wmi","snmp","icmp"], defaultProtos:["wmi","icmp"],
+   groups:[
+     {protos:["wmi"], sensors:[S("CPU Load","wmi"),S("RAM Usage","wmi"),S("C: Drive Free","wmi"),S("D: Drive Free","wmi"),S("VMs Running","wmi"),S("VM CPU Average","wmi"),S("VM RAM Total","wmi"),S("vSwitch Traffic","wmi"),S("CSV Free Space","wmi"),S("Uptime","wmi")]},
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Network In","snmp"),S("Network Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"vmware", cat:"virtualization", emoji:"☁️", name:"VMware ESXi",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Datastore #1 Free","snmp"),S("Datastore #2 Free","snmp"),S("Datastore #3 Free","snmp"),S("VMs Running","snmp"),S("Network Traffic","snmp"),S("vCenter Connection","snmp"),S("HW Health","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"azure_vm", cat:"virtualization", emoji:"🔷", name:"Azure VM",
+   availProtos:["api","agent","icmp"], defaultProtos:["api","agent","icmp"],
+   groups:[
+     {protos:["api"], sensors:[S("CPU Load","api"),S("OS Disk Usage","api"),S("Data Disk Usage","api"),S("Network In","api"),S("Network Out","api"),S("VM Availability","api"),S("Boot Diagnostics","api")]},
+     {protos:["agent"], sensors:[S("RAM Usage","agent"),S("Uptime","agent")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── INFRASTRUCTURE ────────────────────────────
+  {id:"idrac", cat:"infra", emoji:"🖥️", name:"Dell iDRAC (out-of-band)",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Status","snmp"),S("RAM Status","snmp"),S("PSU #1 Status","snmp"),S("PSU #2 Status","snmp"),S("Fan #1 Status","snmp"),S("Fan #2 Status","snmp"),S("Temperature","snmp"),S("RAID Controller","snmp"),S("Physical Disk #1","snmp"),S("Physical Disk #2","snmp"),S("Virtual Disk Status","snmp"),S("iDRAC Health","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"ilo", cat:"infra", emoji:"🖥️", name:"HP iLO (out-of-band)",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Status","snmp"),S("RAM Status","snmp"),S("PSU #1 Status","snmp"),S("PSU #2 Status","snmp"),S("Fan Status","snmp"),S("Temperature","snmp"),S("SmartArray RAID","snmp"),S("Physical Disk #1","snmp"),S("Physical Disk #2","snmp"),S("iLO Health","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"pdu", cat:"infra", emoji:"🔌", name:"Smart PDU",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Total Load (A)","snmp"),S("Outlet #1 Status","snmp"),S("Outlet #2 Status","snmp"),S("Outlet #3 Status","snmp"),S("Outlet #4 Status","snmp"),S("Input Voltage","snmp"),S("Temperature","snmp"),S("Humidity","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"tape", cat:"infra", emoji:"📼", name:"Tape Library",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Library Status","snmp"),S("Drive #1 Status","snmp"),S("Drive #2 Status","snmp"),S("Media Slots Used","snmp"),S("Cleaning Required","snmp"),S("Last Job Status","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── POWER SERVERS ─────────────────────────────
+  {id:"ibm_power_aix", cat:"power", emoji:"🖥️", name:"IBM Power — AIX",
+   availProtos:["snmp","ssh","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Utilization","snmp"),S("RAM Usage","snmp"),S("Physical Processors Used","snmp"),S("Disk I/O","snmp"),S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Paging Space Used","snmp"),S("Uptime","snmp")]},
+     {protos:["ssh"], sensors:[S("CPU Utilization","ssh"),S("RAM Usage","ssh"),S("Paging Space Used","ssh"),S("Filesystem / Free","ssh"),S("Filesystem /var Free","ssh"),S("Filesystem /tmp Free","ssh"),S("Errpt Errors","ssh"),S("Running LPARs","ssh"),S("Uptime","ssh")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"ibm_hmc", cat:"power", emoji:"🎛️", name:"IBM HMC (Hardware Management Console)",
+   availProtos:["snmp","ssh","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Managed Systems","snmp"),S("Disk Usage","snmp"),S("Uptime","snmp")]},
+     {protos:["ssh"], sensors:[S("CPU Load","ssh"),S("RAM Usage","ssh"),S("Managed Systems Count","ssh"),S("LPARs Running","ssh"),S("HMC Disk Free","ssh"),S("Uptime","ssh")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"linux_power", cat:"power", emoji:"🐧", name:"Linux on Power (RHEL/IBM)",
+   availProtos:["ssh","snmp","icmp"], defaultProtos:["ssh","icmp"],
+   groups:[
+     {protos:["ssh"], sensors:[S("CPU Load","ssh"),S("RAM Usage","ssh"),S("Disk / Free","ssh"),S("Disk /data Free","ssh"),S("Network In","ssh"),S("Network Out","ssh"),S("Load Average","ssh"),S("SSH Connectivity","ssh"),S("Uptime","ssh")]},
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"sparc_solaris", cat:"power", emoji:"☀️", name:"Oracle SPARC / Solaris",
+   availProtos:["snmp","ssh","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Utilization","snmp"),S("RAM Usage","snmp"),S("Disk I/O","snmp"),S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp")]},
+     {protos:["ssh"], sensors:[S("CPU Utilization","ssh"),S("RAM Usage","ssh"),S("Swap Used","ssh"),S("ZFS Pool Status","ssh"),S("ZFS Pool Free","ssh"),S("Filesystem / Free","ssh"),S("Network In","ssh"),S("Network Out","ssh"),S("Uptime","ssh")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"hp_ux", cat:"power", emoji:"🖥️", name:"HP Integrity (HP-UX)",
+   availProtos:["snmp","ssh","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Utilization","snmp"),S("RAM Usage","snmp"),S("Disk I/O","snmp"),S("Network Interface In","snmp"),S("Network Interface Out","snmp"),S("Uptime","snmp")]},
+     {protos:["ssh"], sensors:[S("CPU Utilization","ssh"),S("RAM Usage","ssh"),S("Swap Used","ssh"),S("Filesystem / Free","ssh"),S("Filesystem /var Free","ssh"),S("Network In","ssh"),S("Network Out","ssh"),S("Uptime","ssh")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+
+  // ── OTHER ──────────────────────────────────────
+  {id:"nas", cat:"other", emoji:"💾", name:"NAS / Storage",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("CPU Load","snmp"),S("RAM Usage","snmp"),S("Volume #1 Free","snmp"),S("Volume #2 Free","snmp"),S("Volume #3 Free","snmp"),S("Volume #4 Free","snmp"),S("RAID Status","snmp"),S("Temperature","snmp"),S("Fan Status","snmp"),S("Network Throughput","snmp"),S("Uptime","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"ups", cat:"other", emoji:"🔋", name:"UPS",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Battery %","snmp"),S("Runtime Remaining","snmp"),S("Load %","snmp"),S("Input Voltage","snmp"),S("Output Voltage","snmp"),S("Battery Status","snmp"),S("Temperature","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"printer", cat:"other", emoji:"🖨️", name:"Printer / MFP",
+   availProtos:["snmp","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[
+     {protos:["snmp"], sensors:[S("Status","snmp"),S("Toner Black %","snmp"),S("Toner Cyan %","snmp"),S("Toner Magenta %","snmp"),S("Toner Yellow %","snmp"),S("Pages Printed","snmp"),S("Paper Tray","snmp")]},
+     {protos:["icmp"], required:true, sensors:[S("Ping","icmp")]},
+   ]},
+  {id:"custom", cat:"other", emoji:"⚙️", name:"Custom Device", custom:true,
+   availProtos:["snmp","wmi","ssh","icmp"], defaultProtos:["snmp","icmp"],
+   groups:[{protos:["icmp"], required:true, sensors:[S("Ping","icmp")]}]},
+];
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let quantities   = {};
+let deviceProtos = {};
+let deviceRoles  = {};
+let customSensors = 2;
+let activeFilter  = "all";
+let searchQuery   = "";
+let clients       = {};
+let activeClientId = null;
+
+function initState() {
+  DEVICES.forEach(d => {
+    if (!quantities[d.id])   quantities[d.id]   = 0;
+    if (!deviceProtos[d.id]) deviceProtos[d.id] = new Set(d.defaultProtos);
+    if (!deviceRoles[d.id])  deviceRoles[d.id]  = new Set();
+  });
+}
+initState();
+
+// ══════════════════════════════════════════════
+// SENSOR COMPUTATION
+// ══════════════════════════════════════════════
+function getRoleSet(d) {
+  if (d.roleSet === "WIN_ROLES")   return WIN_ROLES;
+  if (d.roleSet === "LINUX_ROLES") return LINUX_ROLES;
+  return {};
+}
+
+function getVisibleSensors(d) {
+  if (d.custom) {
+    return [S("Ping","icmp"), ...Array.from({length:Math.max(0,customSensors-1)},(_,i)=>S(`Custom Sensor #${i+1}`,"snmp"))];
+  }
+  const enabled = deviceProtos[d.id];
+  const seen = new Set(); const result = [];
+  d.groups.forEach(g => {
+    if (g.required || g.protos.some(p => enabled.has(p))) {
+      g.sensors.forEach(s => { if (!seen.has(s.n)) { seen.add(s.n); result.push(s); } });
+    }
+  });
+  if (d.hasRoles && deviceRoles[d.id]) {
+    const rs = getRoleSet(d);
+    deviceRoles[d.id].forEach(rk => {
+      const role = rs[rk];
+      if (role) role.sensors.forEach(s => { if (!seen.has(s.n)) { seen.add(s.n); result.push(s); } });
+    });
+  }
+  return result;
+}
+
+// ══════════════════════════════════════════════
+// CLIENT MANAGEMENT
+// ══════════════════════════════════════════════
+function loadClientsFromStorage() {
+  try { clients = JSON.parse(localStorage.getItem("prtg_clients_v5")||"{}"); } catch(e) { clients={}; }
+  Object.values(clients).forEach(c => {
+    if (c.deviceProtos) Object.keys(c.deviceProtos).forEach(k => c.deviceProtos[k] = new Set(c.deviceProtos[k]));
+    if (c.deviceRoles)  Object.keys(c.deviceRoles).forEach(k  => c.deviceRoles[k]  = new Set(c.deviceRoles[k]));
+  });
+}
+function saveClientsToStorage() {
+  const ser = {};
+  Object.entries(clients).forEach(([id,c]) => {
+    ser[id] = {
+      ...c,
+      deviceProtos: Object.fromEntries(Object.entries(c.deviceProtos||{}).map(([k,v])=>[k,[...v]])),
+      deviceRoles:  Object.fromEntries(Object.entries(c.deviceRoles||{}).map(([k,v])=>[k,[...v]])),
+    };
+  });
+  localStorage.setItem("prtg_clients_v5", JSON.stringify(ser));
+}
+function getClientTotal(c) {
+  let total = 0;
+  DEVICES.forEach(d => {
+    const q = (c.quantities||{})[d.id]||0;
+    if (!q) return;
+    const savedP = deviceProtos[d.id]; const savedR = deviceRoles[d.id];
+    if (c.deviceProtos?.[d.id]) deviceProtos[d.id] = c.deviceProtos[d.id];
+    if (c.deviceRoles?.[d.id])  deviceRoles[d.id]  = c.deviceRoles[d.id];
+    total += q * getVisibleSensors(d).length;
+    deviceProtos[d.id] = savedP; deviceRoles[d.id] = savedR;
+  });
+  return total;
+}
+function renderClientList() {
+  const list = document.getElementById("cpList");
+  const ids = Object.keys(clients);
+  if (!ids.length) { list.innerHTML=`<div class="cp-empty">// no clients yet<br>click + New to start</div>`; return; }
+  list.innerHTML = ids.map(id => {
+    const c = clients[id];
+    return `<div class="cp-item${activeClientId===id?" active":""}" onclick="loadClient('${id}')">
+      <span class="cp-item-name">${c.name}</span>
+      <span class="cp-item-count">${getClientTotal(c).toLocaleString()}</span>
+      <button class="cp-item-del" onclick="deleteClient(event,'${id}')">×</button>
+    </div>`;
+  }).join("");
+}
+function loadClient(id) {
+  activeClientId = id;
+  const c = clients[id];
+  quantities = {...(c.quantities||{})};
+  DEVICES.forEach(d => {
+    deviceProtos[d.id] = c.deviceProtos?.[d.id] ? new Set(c.deviceProtos[d.id]) : new Set(d.defaultProtos);
+    deviceRoles[d.id]  = c.deviceRoles?.[d.id]  ? new Set(c.deviceRoles[d.id])  : new Set();
+    if (!quantities[d.id]) quantities[d.id] = 0;
+  });
+  customSensors = c.customSensors || 2;
+  document.getElementById("cpName").value  = c.name;
+  document.getElementById("cpNotes").value = c.notes||"";
+  document.getElementById("cpFooter").style.display = "block";
+  document.getElementById("hClient").textContent = c.name;
+  renderClientList();
+  renderDevices();
+  updateClientInfoBox();
+}
+function saveCurrentClient() {
+  if (!activeClientId) return;
+  clients[activeClientId] = {
+    name: document.getElementById("cpName").value || clients[activeClientId].name,
+    notes: document.getElementById("cpNotes").value,
+    quantities: {...quantities},
+    customSensors,
+    deviceProtos: Object.fromEntries(Object.entries(deviceProtos).map(([k,v])=>[k,new Set(v)])),
+    deviceRoles:  Object.fromEntries(Object.entries(deviceRoles).map(([k,v])=>[k,new Set(v)])),
+  };
+  saveClientsToStorage();
+  renderClientList();
+  updateClientInfoBox();
+  const btn = document.querySelector(".cp-save");
+  const orig = btn.textContent;
+  btn.textContent = "✓ Saved";
+  btn.style.background = "var(--green)";
+  setTimeout(()=>{ btn.textContent=orig; btn.style.background=""; }, 1500);
+}
+function onClientNameChange() {
+  if (activeClientId) document.getElementById("hClient").textContent = document.getElementById("cpName").value;
+}
+function onNotesChange() { updateClientInfoBox(); }
+function updateClientInfoBox() {
+  const area = document.getElementById("clientInfoArea");
+  const box  = document.getElementById("clientInfoBox");
+  if (!activeClientId) { area.style.display="none"; return; }
+  const name  = document.getElementById("cpName").value;
+  const notes = document.getElementById("cpNotes").value;
+  area.style.display = "block";
+  box.innerHTML = `<div class="cib-name">${name||"—"}</div>${notes?`<div class="cib-notes">${notes}</div>`:""}`;
+}
+function deleteClient(e, id) {
+  e.stopPropagation();
+  if (!confirm(`Delete client "${clients[id]?.name}"?`)) return;
+  delete clients[id];
+  if (activeClientId === id) {
+    activeClientId = null;
+    DEVICES.forEach(d=>{ quantities[d.id]=0; deviceProtos[d.id]=new Set(d.defaultProtos); deviceRoles[d.id]=new Set(); });
+    document.getElementById("cpFooter").style.display="none";
+    document.getElementById("hClient").textContent="No client selected";
+    document.getElementById("clientInfoArea").style.display="none";
+  }
+  saveClientsToStorage(); renderClientList(); renderDevices();
+}
+function openNewClientModal() {
+  document.getElementById("modalName").value="";
+  document.getElementById("modalNotes").value="";
+  document.getElementById("modalBg").classList.add("open");
+  setTimeout(()=>document.getElementById("modalName").focus(),50);
+}
+function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
+function createClient() {
+  const name = document.getElementById("modalName").value.trim();
+  if (!name) { document.getElementById("modalName").focus(); return; }
+  const id = "c_"+Date.now();
+  clients[id] = {name, notes:document.getElementById("modalNotes").value, quantities:{}, deviceProtos:{}, deviceRoles:{}, customSensors:2};
+  saveClientsToStorage();
+  closeModal();
+  loadClient(id);
+}
+document.getElementById("modalBg").addEventListener("click", e=>{ if(e.target===e.currentTarget) closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function setFilter(cat,el) {
+  activeFilter=cat;
+  document.querySelectorAll(".ftab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  renderDevices();
+}
+function filterDevices() {
+  searchQuery=document.getElementById("searchInput").value.toLowerCase();
+  renderDevices();
+}
+function renderDevices() {
+  const c=document.getElementById("deviceContainer");
+  c.innerHTML="";
+  const CATS=[
+    {key:"servers",        label:"Servers"},
+    {key:"network",        label:"Network / Cisco"},
+    {key:"network_hp",     label:"Network / HP & Aruba"},
+    {key:"fortinet",       label:"FortiNet"},
+    {key:"firewalls",      label:"Firewalls (Other)"},
+    {key:"virtualization", label:"Virtualization"},
+    {key:"infra",          label:"Infrastructure (iDRAC / iLO / PDU)"},
+    {key:"power",          label:"Power Servers"},
+    {key:"other",          label:"Other"},
+  ];
+  let any=false;
+  CATS.forEach(cat=>{
+    if (activeFilter!=="all"&&activeFilter!==cat.key) return;
+    const devs=DEVICES.filter(d=>d.cat===cat.key&&(!searchQuery||d.name.toLowerCase().includes(searchQuery)));
+    if (!devs.length) return;
+    any=true;
+    const sec=document.createElement("div");
+    sec.className="cat-section";
+    sec.innerHTML=`<div class="cat-label">${cat.label}</div><div class="device-list"></div>`;
+    devs.forEach(d=>sec.querySelector(".device-list").appendChild(buildCard(d)));
+    c.appendChild(sec);
+  });
+  if (!any) c.innerHTML=`<div class="no-results">// no results for "${searchQuery}"</div>`;
+  updateSummary();
+}
+
+function buildCard(d) {
+  const wrap=document.createElement("div");
+  wrap.className="dcard"+(quantities[d.id]>0?" active":"");
+  wrap.id="card_"+d.id;
+  const sensors=getVisibleSensors(d);
+  const preview=d.custom?"custom":sensors.slice(0,5).map(s=>s.n).join(", ")+(sensors.length>5?" …":"");
+
+  // Protocol toggles
+  let protoHtml="";
+  const enabled=deviceProtos[d.id];
+  d.availProtos.forEach(pid=>{
+    const pr=PROTOS[pid];
+    const isReq=d.groups.find(g=>g.protos.includes(pid)&&g.required);
+    const isOn=enabled.has(pid);
+    protoHtml+=`<label class="pbtn${isOn?"":" off"}${isReq?" locked":""}"
+      style="border-color:${pr.bc};color:${pr.color};background:${pr.bg}"
+      data-pid="${pid}" data-dev="${d.id}">
+      <input type="checkbox" ${isOn?"checked":""} ${isReq?"disabled":""}>${pr.label}
+    </label>`;
+  });
+
+  // Role toggles
+  let roleHtml="";
+  if (d.hasRoles) {
+    const rs=getRoleSet(d);
+    const activeRoles=deviceRoles[d.id]||new Set();
+    Object.entries(rs).forEach(([rk,r])=>{
+      const isOn=activeRoles.has(rk);
+      roleHtml+=`<label class="rbtn${isOn?" on":""}" data-rk="${rk}" data-dev="${d.id}">
+        <input type="checkbox" ${isOn?"checked":""}>${r.emoji} ${r.label}
+      </label>`;
+    });
+  }
+
+  // Chips
+  const chipsHtml=sensors.map(s=>{
+    const pr=PROTOS[s.p];
+    return `<span class="chip" style="border-color:${pr.bc};color:${pr.color};background:${pr.bg}">${s.n}</span>`;
+  }).join("");
+
+  wrap.innerHTML=`
+    <div class="card-top">
+      <div class="dev-emoji">${d.emoji}</div>
+      <div>
+        <div class="dev-name">${d.name}</div>
+        <div class="dev-sub">${preview}</div>
+      </div>
+      <div class="stag" id="tag_${d.id}">${sensors.length} sen/unit</div>
+      <div class="qty-ctrl" onclick="event.stopPropagation()">
+        <button class="qbtn" onclick="changeQty('${d.id}',-1)">−</button>
+        <input class="qinp" type="number" min="0" max="9999" value="${quantities[d.id]}" id="qi_${d.id}" oninput="setQty('${d.id}',this.value)">
+        <button class="qbtn" onclick="changeQty('${d.id}',1)">+</button>
+      </div>
+    </div>
+    <div class="expand-section">
+      <div class="sec-title">Connection protocols</div>
+      <div class="proto-btns" id="ptogs_${d.id}">${protoHtml}</div>
+    </div>
+    ${d.hasRoles?`<div class="expand-section roles-section">
+      <div class="sec-title">Server roles</div>
+      <div class="role-btns" id="roles_${d.id}">${roleHtml}</div>
+    </div>`:""}
+    ${d.custom?`<div class="custom-extra" id="cext_${d.id}">
+      <div class="sec-title" style="margin-bottom:5px">Sensors per device</div>
+      <input type="number" min="1" max="999" value="${customSensors}" oninput="setCustom(this.value)" onclick="event.stopPropagation()">
+    </div>`:""}
+    <div class="expand-section chips-section">
+      <div class="sec-title" id="sb-title_${d.id}">Sensors (${sensors.length})</div>
+      <div class="chips" id="chips_${d.id}">${chipsHtml}</div>
+    </div>`;
+
+  if (d.custom) {
+    const ce=wrap.querySelector(".custom-extra");
+    if(ce) ce.style.display=quantities[d.id]>0?"block":"none";
+  }
+
+  // Proto events
+  wrap.querySelectorAll(".pbtn:not(.locked)").forEach(lbl=>{
+    lbl.addEventListener("click",e=>{
+      e.stopPropagation();
+      const pid=lbl.dataset.pid,dev=lbl.dataset.dev;
+      const cb=lbl.querySelector("input");
+      cb.checked=!cb.checked;
+      if(cb.checked) deviceProtos[dev].add(pid); else deviceProtos[dev].delete(pid);
+      lbl.classList.toggle("off",!cb.checked);
+      refreshCard(dev); updateSummary();
+    });
+  });
+
+  // Role events
+  if(d.hasRoles){
+    wrap.querySelectorAll(".rbtn").forEach(lbl=>{
+      lbl.addEventListener("click",e=>{
+        e.stopPropagation();
+        const rk=lbl.dataset.rk,dev=lbl.dataset.dev;
+        const cb=lbl.querySelector("input");
+        cb.checked=!cb.checked;
+        if(!deviceRoles[dev]) deviceRoles[dev]=new Set();
+        if(cb.checked) deviceRoles[dev].add(rk); else deviceRoles[dev].delete(rk);
+        lbl.classList.toggle("on",cb.checked);
+        refreshCard(dev); updateSummary();
+      });
+    });
+  }
+
+  return wrap;
+}
+
+function refreshCard(id) {
+  const d=DEVICES.find(x=>x.id===id);
+  if(!d) return;
+  const sensors=getVisibleSensors(d);
+  const cnt=sensors.length;
+  const tag=document.getElementById("tag_"+id);
+  if(tag) tag.textContent=cnt+" sen/unit";
+  const chips=document.getElementById("chips_"+id);
+  if(chips) chips.innerHTML=sensors.map(s=>{
+    const pr=PROTOS[s.p];
+    return `<span class="chip" style="border-color:${pr.bc};color:${pr.color};background:${pr.bg}">${s.n}</span>`;
+  }).join("");
+  const sbt=document.getElementById("sb-title_"+id);
+  if(sbt) sbt.textContent=`Sensors (${cnt})`;
+  const dvSub=document.querySelector(`#card_${id} .dev-sub`);
+  if(dvSub) dvSub.textContent=d.custom?"custom":sensors.slice(0,5).map(s=>s.n).join(", ")+(sensors.length>5?" …":"");
+}
+
+function changeQty(id,delta) {
+  quantities[id]=Math.max(0,(quantities[id]||0)+delta);
+  const inp=document.getElementById("qi_"+id);
+  if(inp) inp.value=quantities[id];
+  const card=document.getElementById("card_"+id);
+  if(card){
+    card.classList.toggle("active",quantities[id]>0);
+    const ce=card.querySelector(".custom-extra");
+    if(ce) ce.style.display=quantities[id]>0?"block":"none";
+  }
+  updateSummary();
+}
+function setQty(id,v) {
+  quantities[id]=Math.max(0,parseInt(v)||0);
+  const card=document.getElementById("card_"+id);
+  if(card){
+    card.classList.toggle("active",quantities[id]>0);
+    const ce=card.querySelector(".custom-extra");
+    if(ce) ce.style.display=quantities[id]>0?"block":"none";
+  }
+  updateSummary();
+}
+function setCustom(v) {
+  customSensors=Math.max(1,parseInt(v)||1);
+  refreshCard("custom"); updateSummary();
+}
+
+// ══════════════════════════════════════════════
+// SUMMARY
+// ══════════════════════════════════════════════
+function updateSummary() {
+  const active=DEVICES.filter(d=>quantities[d.id]>0);
+  let total=0,totalDev=0;
+  const pc={}; Object.keys(PROTOS).forEach(k=>pc[k]=0);
+
+  active.forEach(d=>{
+    const q=quantities[d.id];
+    const sensors=getVisibleSensors(d);
+    total+=q*sensors.length; totalDev+=q;
+    sensors.forEach(s=>{ if(pc[s.p]!==undefined) pc[s.p]+=q; });
+  });
+
+  document.getElementById("totalSensors").textContent=total.toLocaleString();
+  document.getElementById("totalDevices").textContent=totalDev+(totalDev===1?" device selected":" devices selected");
+  document.getElementById("hTotal").textContent=total.toLocaleString()+" sensors";
+
+  document.getElementById("protoSum").innerHTML=PROTO_ORDER.map(pid=>{
+    const pr=PROTOS[pid],c=pc[pid];
+    const pct=total>0?Math.round(c/total*100):0;
+    return `<div class="ps-row">
+      <span class="ps-lbl"><span style="width:7px;height:7px;border-radius:50%;background:${pr.color};display:inline-block;flex-shrink:0"></span>${pr.label}</span>
+      <span class="ps-val">${c>0?c.toLocaleString():"—"}${c>0?` <span style="font-size:9px;color:var(--text3)">(${pct}%)</span>`:""}</span>
+    </div>`;
+  }).join("");
+
+  const body=document.getElementById("bdBody");
+  if(!active.length){body.innerHTML=`<div class="bd-empty">— none selected —</div>`;return;}
+  body.innerHTML=active.map(d=>{
+    const sensors=getVisibleSensors(d);
+    const sub=quantities[d.id]*sensors.length;
+    const rs=getRoleSet(d);
+    const roles=d.hasRoles&&deviceRoles[d.id]?.size>0
+      ?[...deviceRoles[d.id]].map(rk=>rs[rk]?.label).filter(Boolean).join(", ")
+      :null;
+    return `<div class="bd-row">
+      <span class="bd-name">${d.emoji} ${d.name}${roles?`<br><span style="font-size:9px;color:var(--yellow)">${roles}</span>`:""}</span>
+      <span class="bd-qty">×${quantities[d.id]}</span>
+      <span class="bd-tot">${sub.toLocaleString()}</span>
+    </div>`;
+  }).join("")+`<div class="bd-row" style="border-top:1px solid var(--border2)">
+    <span class="bd-name" style="color:var(--text);font-weight:500">Total</span>
+    <span class="bd-qty" style="color:var(--text2)">×${totalDev}</span>
+    <span class="bd-tot" style="font-size:13px">${total.toLocaleString()}</span>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════════
+function resetDevices() {
+  DEVICES.forEach(d=>{
+    quantities[d.id]=0;
+    deviceProtos[d.id]=new Set(d.defaultProtos);
+    deviceRoles[d.id]=new Set();
+  });
+  customSensors=2;
+  renderDevices();
+}
+
+// ══════════════════════════════════════════════
+// PRINT
+// ══════════════════════════════════════════════
+function printReport() {
+  const active=DEVICES.filter(d=>quantities[d.id]>0);
+  if(!active.length){alert("No devices selected.");return;}
+  let total=0,totalDev=0;
+  const pc={}; Object.keys(PROTOS).forEach(k=>pc[k]=0);
+  const clientName=activeClientId?(clients[activeClientId]?.name||"—"):"—";
+  const clientNotes=activeClientId?(clients[activeClientId]?.notes||""):"";
+
+  const rows=active.map(d=>{
+    const sensors=getVisibleSensors(d);
+    const sub=quantities[d.id]*sensors.length;
+    total+=sub; totalDev+=quantities[d.id];
+    sensors.forEach(s=>{if(pc[s.p]!==undefined) pc[s.p]+=quantities[d.id];});
+    const rs=getRoleSet(d);
+    const roles=d.hasRoles&&deviceRoles[d.id]?.size>0
+      ?`<br><span style="font-size:10px;color:#b45309">${[...deviceRoles[d.id]].map(rk=>rs[rk]?.label).filter(Boolean).join(", ")}</span>`:"";
+    const detail=sensors.map(s=>{
+      const pr=PROTOS[s.p];
+      return `<span style="display:inline-block;font-size:10px;background:#f8fafc;border:1px solid ${pr.bc}55;border-radius:3px;padding:1px 5px;margin:1px;font-family:monospace;color:#334155">
+        <span style="color:${pr.color};font-weight:700">[${pr.label}]</span> ${s.n}</span>`;
+    }).join("");
+    return `<tr>
+      <td>${d.emoji} ${d.name}${roles}</td>
+      <td style="text-align:center">${quantities[d.id]}</td>
+      <td style="text-align:center">${sensors.length}</td>
+      <td style="text-align:right;font-weight:600">${sub.toLocaleString()}</td>
+    </tr>
+    <tr><td colspan="4" style="padding:2px 10px 9px;border-bottom:1px solid #e2e8f0">${detail}</td></tr>`;
+  }).join("");
+
+  const protoSec=PROTO_ORDER.filter(pid=>pc[pid]>0).map(pid=>{
+    const pr=PROTOS[pid];
+    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${pr.color};display:inline-block"></span>${pr.label}</span>
+      <strong>${pc[pid].toLocaleString()}</strong></div>`}).join("");
+
+  const now=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const win=window.open("","_blank");
+  win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>PRTG Report — ${clientName}</title>
+  <style>
+    body{font-family:'Segoe UI',Arial,sans-serif;margin:32px;color:#111;font-size:13px}
+    h1{font-size:17px;margin-bottom:2px}.meta{font-size:11px;color:#666;margin-bottom:16px}
+    .notes{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#78350f;margin-bottom:16px;white-space:pre-wrap}
+    .summary{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+    .sum-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:9px 14px;min-width:100px}
+    .sum-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+    .sum-val{font-size:20px;font-weight:700;color:#1a6fcf}
+    .proto-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:9px 14px;min-width:180px;flex:1}
+    table{width:100%;border-collapse:collapse}
+    th{background:#0d1117;color:#fff;padding:6px 9px;text-align:left;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+    td{padding:6px 9px;vertical-align:top}
+    tr:nth-child(4n+1) td{background:#f8fafc}
+    .tot td{background:#eff6ff!important;font-weight:700;border-top:2px solid #1a6fcf}
+    @media print{body{margin:14px}}
+  </style></head><body>
+  <h1>📡 PRTG Sensor Report — BlueStream Solutions</h1>
+  <div class="meta">Client: <strong>${clientName}</strong> &nbsp;·&nbsp; Date: ${now}</div>
+  ${clientNotes?`<div class="notes">📝 ${clientNotes}</div>`:""}
+  <div class="summary">
+    <div class="sum-box"><div class="sum-label">Total Sensors</div><div class="sum-val">${total.toLocaleString()}</div></div>
+    <div class="sum-box"><div class="sum-label">Device Types</div><div class="sum-val">${active.length}</div></div>
+    <div class="sum-box"><div class="sum-label">Total Devices</div><div class="sum-val">${totalDev}</div></div>
+    <div class="proto-box"><div class="sum-label" style="margin-bottom:7px">By protocol</div>${protoSec}</div>
+  </div>
+  <table>
+    <thead><tr><th>Device</th><th style="text-align:center">Qty</th><th style="text-align:center">Sen/unit</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${rows}
+    <tr class="tot"><td>TOTAL</td><td style="text-align:center">${totalDev}</td><td></td><td style="text-align:right">${total.toLocaleString()}</td></tr>
+    </tbody>
+  </table>
+  <script>window.onload=()=>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// ══════════════════════════════════════════════
+// EXPORT / IMPORT
+// ══════════════════════════════════════════════
+function exportProfiles() {
+  if (!Object.keys(clients).length) { alert("No client profiles to export."); return; }
+  const ser = {};
+  Object.entries(clients).forEach(([id,c]) => {
+    ser[id] = {
+      ...c,
+      deviceProtos: Object.fromEntries(Object.entries(c.deviceProtos||{}).map(([k,v])=>[k,[...v]])),
+      deviceRoles:  Object.fromEntries(Object.entries(c.deviceRoles||{}).map(([k,v])=>[k,[...v]])),
+    };
+  });
+  const payload = JSON.stringify({version:"prtg-calc-v5", exportedAt: new Date().toISOString(), clients: ser}, null, 2);
+  const blob = new Blob([payload], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `prtg-profiles-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function importProfiles(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.clients) { alert("Invalid file format."); return; }
+      const count = Object.keys(data.clients).length;
+      const existing = Object.keys(clients).length;
+      let mode = "merge";
+      if (existing > 0) {
+        const choice = confirm(`Import ${count} profile(s).\n\nOK = Merge with existing profiles\nCancel = Replace all existing profiles`);
+        mode = choice ? "merge" : "replace";
+      }
+      if (mode === "replace") clients = {};
+      Object.entries(data.clients).forEach(([id, c]) => {
+        clients[id] = {
+          ...c,
+          deviceProtos: Object.fromEntries(Object.entries(c.deviceProtos||{}).map(([k,v])=>[k,new Set(v)])),
+          deviceRoles:  Object.fromEntries(Object.entries(c.deviceRoles||{}).map(([k,v])=>[k,new Set(v)])),
+        };
+      });
+      saveClientsToStorage();
+      renderClientList();
+      alert(`Successfully imported ${count} profile(s).`);
+    } catch(err) {
+      alert("Failed to read file. Make sure it is a valid PRTG Calculator JSON export.");
+    }
+    input.value = "";
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+loadClientsFromStorage();
+renderClientList();
+renderDevices();
+</script>
+</body>
+</html>
